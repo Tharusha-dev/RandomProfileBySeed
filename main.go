@@ -9,8 +9,10 @@ import (
 
 func main() {
 
+	// Ffile
 	var fileToRead string
 
+	// stdio seed enter
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("Enter :")
@@ -20,11 +22,14 @@ func main() {
 		fmt.Println(err_read)
 	}
 
+	//gender letter is set to the SECOND letter
 	gender_letter := int(read[1])
 
-	fname_letter, _ := getStrings(read)
+	//fname letter is the first non numerical letter and lname letter is the second non numerical letter
+	fname_letter, lname_letter := getStrings(read)
 
-	gender := getGender(&gender_letter) // 0 => Male & 1 => Female
+	// 0 => Male & 1 => Female
+	gender := getGender(&gender_letter)
 
 	if gender == 1 {
 		fmt.Println(strings.ToUpper(fname_letter) + ".txt" + "  Female")
@@ -38,37 +43,50 @@ func main() {
 
 	}
 
+	// first name offset is calculated by THIRD letter * FOURTH letter
 	fname_offset := findIndexFromLetters(read[2]) * findIndexFromLetters(read[3])
 
-	nameTest := getNameAtIndex(&fname_offset, &fileToRead)
+	// last name offset is calculated by FOUTH letter * FIFTH (LAST) letter
+	lname_offset := findIndexFromLetters(read[3]) * findIndexFromLetters(read[4])
+
+	// address offset is calculated by SECOND letter * FOURTH letter
+	address_offset := findIndexFromLetters(read[1]) * findIndexFromLetters(read[3])
+
+	// email offset set to the ascii of FORTH letter
+	email_offset := int(read[3])
+
+	// username offset set to the ascii of FIFTH (LAST) letter
+	username_offset := int(read[4])
+
+	fname := getNameAtIndex(&fname_offset, &fileToRead)
+
+	fileToRead = "last_names/lname_" + strings.ToUpper(lname_letter) + ".txt"
+
+	lname := getNameAtIndex(&lname_offset, &fileToRead)
+
+	fileToRead = "emails.txt"
+
+	email := getEmail(email_offset, fname, lname, read, &fileToRead)
+
+	fileToRead = "addresses/addresses.txt"
+
+	address := getNameAtIndex(&address_offset, &fileToRead)
+
+	fileToRead = "usernames.txt"
+
+	username := getUsername(username_offset, fname, lname, read, &fileToRead)
 
 	fmt.Println(fname_offset)
 
 	fmt.Println(gender)
 
 	fmt.Println("test ****")
-	fmt.Println(nameTest)
+	fmt.Println(fname)
+	fmt.Println(lname)
+	fmt.Println(email)
+	fmt.Println(address)
+	fmt.Println(username)
 
-}
-
-func prepRanges() ([]int, []int) {
-
-	var lowerCase []int
-	var upperCase []int
-
-	// lowerCase = make([]int, 26,26)
-
-	for i := 97; i <= 122; i++ {
-		lowerCase = append(lowerCase, i)
-
-	}
-
-	for i := 65; i <= 90; i++ {
-		upperCase = append(upperCase, i)
-
-	}
-
-	return lowerCase, upperCase
 }
 
 func getGender(secondLetter *int) int {
@@ -136,12 +154,11 @@ func getNameAtIndex(index *int, fileToRead *string) string {
 		scanner := bufio.NewScanner(file)
 
 		for scanner.Scan() {
-			fmt.Println("initial scan linesread:- " + fmt.Sprint(linesread))
+			// fmt.Println("initial scan linesread:- " + fmt.Sprint(linesread))
 
 			name = scanner.Text()
 
 			if linesread >= *index-1 {
-				fmt.Println("broke")
 
 				break
 			}
@@ -155,4 +172,104 @@ func getNameAtIndex(index *int, fileToRead *string) string {
 	}
 
 	return name
+}
+
+func getEmail(index int, fname string, lname string, seed string, fileToRead *string) string {
+
+	linesread := 0
+	var email string
+
+	for {
+
+		if linesread >= index-1 {
+
+			break
+		}
+
+		file, err_file := os.Open(*fileToRead)
+
+		if err_file != nil {
+			fmt.Println("could not open the file: %v", err_file)
+		}
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			// fmt.Println("initial scan linesread:- " + fmt.Sprint(linesread))
+
+			email = scanner.Text()
+
+			if linesread >= index-1 {
+
+				break
+			}
+
+			linesread++
+
+		}
+
+		file.Close()
+
+	}
+
+	email = strings.Replace(email, "<fname>", strings.ToLower(fname), -1)
+	email = strings.Replace(email, "<lname>", strings.ToLower(lname), -1)
+	email = strings.Replace(email, "<int1>", fmt.Sprintf("%d", seed[0]), -1)
+	email = strings.Replace(email, "<int2>", fmt.Sprintf("%d", seed[1]), -1)
+	email = strings.Replace(email, "<int3>", fmt.Sprintf("%d", seed[2]), -1)
+	email = strings.Replace(email, "<int4>", fmt.Sprintf("%d", seed[3]), -1)
+	email = strings.Replace(email, "<int5>", fmt.Sprintf("%d", seed[4]), -1)
+
+	return email
+
+}
+
+func getUsername(index int, fname string, lname string, seed string, fileToRead *string) string {
+
+	linesread := 0
+	var username string
+
+	for {
+
+		if linesread >= index-1 {
+
+			break
+		}
+
+		file, err_file := os.Open(*fileToRead)
+
+		if err_file != nil {
+			fmt.Println("could not open the file: %v", err_file)
+		}
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			// fmt.Println("initial scan linesread:- " + fmt.Sprint(linesread))
+
+			username = scanner.Text()
+
+			if linesread >= index-1 {
+
+				break
+			}
+
+			linesread++
+
+		}
+
+		file.Close()
+
+	}
+
+	username = strings.Replace(username, "<fname>", strings.ToLower(fname), -1)
+	username = strings.Replace(username, "<lname>", strings.ToLower(lname), -1)
+	username = strings.Replace(username, "<int1>", fmt.Sprintf("%d", seed[0]), -1)
+	username = strings.Replace(username, "<int2>", fmt.Sprintf("%d", seed[1]), -1)
+	username = strings.Replace(username, "<int3>", fmt.Sprintf("%d", seed[2]), -1)
+	username = strings.Replace(username, "<int4>", fmt.Sprintf("%d", seed[3]), -1)
+	username = strings.Replace(username, "<int5>", fmt.Sprintf("%d", seed[4]), -1)
+
+	return username
+
 }
