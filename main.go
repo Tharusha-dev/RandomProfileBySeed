@@ -2,91 +2,168 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"unicode"
 )
+
+type Profile struct {
+	firstName string
+	lastName  string
+	username  string
+	email     string
+	address   string
+}
 
 func main() {
 
-	const userNameFile = "usernames.txt"
-	const emailFormatsFile = "emails.txt"
-	const usAddressesFile = "addresses/addresses.txt"
+	asciiPoints := make(map[string]int)
+	asciiPoints["asciiLowerCaseLetterStarts"] = 97
+	asciiPoints["asciiLowerCaseLetterEnds"] = 122
+	asciiPoints["asciiUpperCaseLetterStarts"] = 65
+	asciiPoints["asciiUpperCaseLetterEnds"] = 90
 
-	// File
-	var fnameFile string
+	fmt.Println(asciiPoints)
 
-	// stdio seed enter
+	const userNameFile = "data/common_templates/usernames.txt"
+	const emailFormatsFile = "data/common_templates/emails.txt"
+	const usAddressesFile = "data/by_region/US/addresses/addresses.txt"
+
+	// var fnameFile string
+
+	seed := getInput()
+
+	//gender letter is set to the SECOND letter
+	genderDeterminingLetter := int(seed[1])
+
+	//fname letter is the first non numerical letter and lname letter is the second non numerical letter
+	firstNameDeterminingLetter, lastNameDeterminingLetter := findFirstTwoNonNumericalCharacters(seed, asciiPoints)
+
+	// 0 => Male & 1 => Female
+	gender := determineGender(&genderDeterminingLetter)
+
+	firstNameFile := getFirstNameFile(gender, firstNameDeterminingLetter)
+
+	firstNameOffset, lastNameOffset, addressOffset, emailOffset, usernameOffset := getOffsets(seed, asciiPoints)
+
+	firstName := getLineAtIndex(firstNameOffset, firstNameFile)
+
+	lastNameFile := "data/by_region/US/names/last_names/lname_" + strings.ToUpper(lastNameDeterminingLetter) + ".txt"
+
+	lastName := getLineAtIndex(lastNameOffset, lastNameFile)
+
+	email := getFormattedString(emailOffset, firstName, lastName, seed, emailFormatsFile)
+
+	address := getLineAtIndex(addressOffset, usAddressesFile)
+
+	username := getFormattedString(usernameOffset, firstName, lastName, seed, userNameFile)
+
+	generatedProfile := Profile{firstName: firstName, lastName: lastName, username: username, email: email, address: address}
+
+	generatedProfile.printDetails()
+
+}
+
+func (profile Profile) printDetails() {
+
+	log.Println(profile.firstName)
+	log.Println(profile.lastName)
+	log.Println(profile.email)
+	log.Println(profile.address)
+	log.Println(profile.username)
+
+}
+
+func getOffsets(seed string, asciiPoints map[string]int) (int, int, int, int, int) {
+
+	// first name offset is calculated by THIRD letter * FOURTH letter
+	firstNameOffset := findIndexFromLetter(seed[2], asciiPoints) * findIndexFromLetter(seed[3], asciiPoints)
+
+	// last name offset is calculated by FOUTH letter * FIFTH (LAST) letter
+	lastNameOffset := findIndexFromLetter(seed[3], asciiPoints) * findIndexFromLetter(seed[4], asciiPoints)
+
+	// address offset is calculated by SECOND letter * FOURTH letter
+	addressOffset := findIndexFromLetter(seed[1], asciiPoints) * findIndexFromLetter(seed[3], asciiPoints)
+
+	// email offset set to the ascii of FORTH letter
+	emailOffset := int(seed[3])
+
+	// username offset set to the ascii of FIFTH (LAST) letter
+	usernameOffset := int(seed[4])
+
+	return firstNameOffset, lastNameOffset, addressOffset, emailOffset, usernameOffset
+
+}
+
+func getFirstNameFile(gender int, firstNameDeterminingLetter string) string {
+
+	var firstNameFile string
+
+	if gender == 1 {
+		log.Println(strings.ToUpper(firstNameDeterminingLetter) + ".txt" + "  Female")
+		firstNameFile = "data/by_region/US/names/first_names/by_gender/female_" + strings.ToUpper(firstNameDeterminingLetter) + ".txt"
+		log.Println(firstNameFile)
+
+	} else {
+		log.Println(strings.ToUpper(firstNameDeterminingLetter) + ".txt" + "  Male")
+		firstNameFile = "data/by_region/US/names/first_names/by_gender/male_" + strings.ToUpper(firstNameDeterminingLetter) + ".txt"
+		log.Println(firstNameFile)
+
+	}
+
+	return firstNameFile
+
+}
+
+func getInput() string {
+
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("Enter seed:")
 
 	read, err_read := reader.ReadString('\n')
+
 	if err_read != nil {
-		log.Println(err_read)
+		log.Printf("could not open the file: %v", err_read)
 	}
 
-	//gender letter is set to the SECOND letter
-	gender_letter := int(read[1])
+	read = strings.TrimSpace(read)
 
-	//fname letter is the first non numerical letter and lname letter is the second non numerical letter
-	fname_letter, lname_letter := findFirstTwoNonNumericalCharacters(read)
+	inputError := validateInput(read)
 
-	// 0 => Male & 1 => Female
-	gender := getGender(&gender_letter)
-
-	if gender == 1 {
-		log.Println(strings.ToUpper(fname_letter) + ".txt" + "  Female")
-		fnameFile = "by_gender/female_" + strings.ToUpper(fname_letter) + ".txt"
-		log.Println(fnameFile)
+	if inputError != nil {
+		log.Println(inputError)
+		getInput()
 
 	} else {
-		log.Println(strings.ToUpper(fname_letter) + ".txt" + "  Male")
-		fnameFile = "by_gender/male_" + strings.ToUpper(fname_letter) + ".txt"
-		log.Println(fnameFile)
-
+		return read
 	}
 
-	// first name offset is calculated by THIRD letter * FOURTH letter
-	fname_offset := findIndexFromLetter(read[2]) * findIndexFromLetter(read[3])
-
-	// last name offset is calculated by FOUTH letter * FIFTH (LAST) letter
-	lname_offset := findIndexFromLetter(read[3]) * findIndexFromLetter(read[4])
-
-	// address offset is calculated by SECOND letter * FOURTH letter
-	address_offset := findIndexFromLetter(read[1]) * findIndexFromLetter(read[3])
-
-	// email offset set to the ascii of FORTH letter
-	email_offset := int(read[3])
-
-	// username offset set to the ascii of FIFTH (LAST) letter
-	username_offset := int(read[4])
-
-	fname := getLineAtIndex(fname_offset, fnameFile)
-
-	lnameFile := "last_names/lname_" + strings.ToUpper(lname_letter) + ".txt"
-
-	lname := getLineAtIndex(lname_offset, lnameFile)
-
-	email := getEmail(email_offset, fname, lname, read, emailFormatsFile)
-
-	address := getLineAtIndex(address_offset, usAddressesFile)
-
-	username := getUsername(username_offset, fname, lname, read, userNameFile)
-
-	log.Println("test ****")
-	log.Println(fname)
-	log.Println(lname)
-	log.Println(email)
-	log.Println(address)
-	log.Println(username)
+	return ""
 
 }
 
-func getGender(secondLetter *int) int {
+func validateInput(str string) error {
+	for _, char := range str {
+		if !unicode.IsLetter(char) && !unicode.IsNumber(char) {
+			return errors.New("only enter numbers or english letters")
+		}
 
-	if *secondLetter >= 78 && *secondLetter <= 90 || *secondLetter >= 110 && *secondLetter <= 122 || *secondLetter >= 52 && *secondLetter <= 57 {
+	}
+
+	if len(str) > 5 {
+		return errors.New("only enter 5 characters")
+	}
+
+	return nil
+}
+
+func determineGender(genderDeterminingLetter *int) int {
+
+	if *genderDeterminingLetter >= 78 && *genderDeterminingLetter <= 90 || *genderDeterminingLetter >= 110 && *genderDeterminingLetter <= 122 || *genderDeterminingLetter >= 52 && *genderDeterminingLetter <= 57 {
 
 		return 0
 
@@ -97,13 +174,13 @@ func getGender(secondLetter *int) int {
 
 }
 
-func findFirstTwoNonNumericalCharacters(seed string) (string, string) {
+func findFirstTwoNonNumericalCharacters(seed string, asciiPoint map[string]int) (string, string) {
 	var letters []int
 
 	for _, l := range seed[2:] {
 		kl := int(l)
 
-		if kl >= 97 && kl <= 122 || kl >= 65 && kl <= 90 {
+		if kl >= asciiPoint["asciiLowerCaseLetterStarts"] && kl <= asciiPoint["asciiLowerCaseLetterEnds"] || kl >= asciiPoint["asciiUpperCaseLetterStarts"] && kl <= asciiPoint["asciiUpperCaseLetterEnds"] {
 
 			letters = append(letters, kl)
 		}
@@ -114,13 +191,13 @@ func findFirstTwoNonNumericalCharacters(seed string) (string, string) {
 
 }
 
-func findIndexFromLetter(letter byte) int {
+func findIndexFromLetter(letter byte, asciiPoint map[string]int) int {
 
 	l := int(letter)
 
-	if l >= 97 && l <= 122 {
+	if l >= asciiPoint["asciiLowerCaseLetterStarts"] && l <= asciiPoint["asciiLowerCaseLetterEnds"] {
 		return l - 96
-	} else if l >= 65 && l <= 90 {
+	} else if l >= asciiPoint["asciiUpperCaseLetterStarts"] && l <= asciiPoint["asciiUpperCaseLetterEnds"] {
 		return l - 38
 	} else {
 		return l + 5
@@ -168,38 +245,20 @@ func getLineAtIndex(index int, fileToRead string) string {
 	return line
 }
 
-func getEmail(index int, fname string, lname string, seed string, fileToRead string) string {
+func getFormattedString(index int, fname string, lname string, seed string, fileToRead string) string {
 
-	var email string
+	var formattedString string
 
-	email = getLineAtIndex(index, fileToRead)
-	email = getStringFromTemplate(&email, seed, fname, lname)
+	formattedString = getLineAtIndex(index, fileToRead)
 
-	return email
+	formattedString = strings.Replace(formattedString, "<fname>", strings.ToLower(fname), -1)
+	formattedString = strings.Replace(formattedString, "<lname>", strings.ToLower(lname), -1)
+	formattedString = strings.Replace(formattedString, "<int1>", fmt.Sprintf("%d", seed[0]), -1)
+	formattedString = strings.Replace(formattedString, "<int2>", fmt.Sprintf("%d", seed[1]), -1)
+	formattedString = strings.Replace(formattedString, "<int3>", fmt.Sprintf("%d", seed[2]), -1)
+	formattedString = strings.Replace(formattedString, "<int4>", fmt.Sprintf("%d", seed[3]), -1)
+	formattedString = strings.Replace(formattedString, "<int5>", fmt.Sprintf("%d", seed[4]), -1)
 
-}
-
-func getUsername(index int, fname string, lname string, seed string, fileToRead string) string {
-
-	var username string
-
-	username = getLineAtIndex(index, fileToRead)
-	username = getStringFromTemplate(&username, seed, fname, lname)
-
-	return username
-
-}
-
-func getStringFromTemplate(original *string, seed string, fname string, lname string) string {
-
-	*original = strings.Replace(*original, "<fname>", strings.ToLower(fname), -1)
-	*original = strings.Replace(*original, "<lname>", strings.ToLower(lname), -1)
-	*original = strings.Replace(*original, "<int1>", fmt.Sprintf("%d", seed[0]), -1)
-	*original = strings.Replace(*original, "<int2>", fmt.Sprintf("%d", seed[1]), -1)
-	*original = strings.Replace(*original, "<int3>", fmt.Sprintf("%d", seed[2]), -1)
-	*original = strings.Replace(*original, "<int4>", fmt.Sprintf("%d", seed[3]), -1)
-	*original = strings.Replace(*original, "<int5>", fmt.Sprintf("%d", seed[4]), -1)
-
-	return *original
+	return formattedString
 
 }
